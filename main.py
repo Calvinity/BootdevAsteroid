@@ -35,6 +35,24 @@ def draw_score(screen, score, font):
 
 def main():
     pygame.init()
+    audio_enabled = False
+    shoot_sound = None
+    explosion_sound = None
+    background_music = None
+    try:
+        pygame.mixer.init()
+        shoot_sound = pygame.mixer.Sound("sounds/shoot.wav")
+        explosion_sound = pygame.mixer.Sound("sounds/explosion.wav")
+        background_music = pygame.mixer.Sound("sounds/background.wav")
+        audio_enabled = True
+        print("Audio loaded successfully!")
+
+        if background_music:
+            pygame.mixer.Sound.play(background_music, loops=-1)
+
+    except (pygame.error, FileNotFoundError) as e:
+        print(f"Audio disabled: {e}")
+        audio_enabled = False
     print("Starting Asteroids!")
     print(f"Screen width: {SCREEN_WIDTH}")
     print(f"Screen height: {SCREEN_HEIGHT}")
@@ -63,12 +81,16 @@ def main():
                     if asteroid.collides_with(shot):
                         asteroid.split()
                         shot.kill()
+                        if audio_enabled and explosion_sound:
+                            explosion_sound.play()
                         score += 10
                         player.upgrade_weapon(score)
             draw_score(screen, score, font)
 
             if keys[pygame.K_SPACE]:
                 player.shoot()
+                if audio_enabled and shoot_sound:
+                    shoot_sound.play()
             
 
 
@@ -113,6 +135,9 @@ def main():
                         sprite.kill()
                     for sprite in shots:
                         sprite.kill()
+                    if audio_enabled and background_music:
+                         pygame.mixer.stop()
+                         pygame.mixer.Sound.play(background_music, loops=-1)
                         
                     # Recreate the player and asteroid field
                     player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
