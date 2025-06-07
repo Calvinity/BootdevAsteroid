@@ -34,12 +34,24 @@ def get_resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
-def draw_score(screen, score, font):
+def draw_ui(screen, score, game_time, difficulty_level, font):
+    # Score (centered at top)
     score_text = font.render(f"Score: {score}", True, (255, 165, 0))
     text_rect = score_text.get_rect()
     text_rect.centerx = SCREEN_WIDTH // 2
     text_rect.y = 10
     screen.blit(score_text, text_rect)
+    
+    # Timer (top left)
+    minutes = int(game_time // 60)
+    seconds = int(game_time % 60)
+    time_text = font.render(f"Time: {minutes:02d}:{seconds:02d}", True, (255, 255, 255))
+    screen.blit(time_text, (10, 10))
+    
+    # Difficulty (top left, below timer)
+    displayed_difficulty = difficulty_level + 1
+    diff_text = font.render(f"Level: {displayed_difficulty}", True, (255, 100, 100))
+    screen.blit(diff_text, (10, 50))
 
 
 def main():
@@ -96,7 +108,8 @@ def main():
                             explosion_sound.play()
                         score += 10
                         player.upgrade_weapon(score)
-            draw_score(screen, score, font)
+            difficulty_level = int(asteroid_field.game_time // asteroid_field.difficulty_interval)
+            draw_ui(screen, score, asteroid_field.game_time, difficulty_level, font)
 
             if keys[pygame.K_SPACE]:
                 player.shoot()
