@@ -11,6 +11,7 @@ from circleshape import *
 from shot import *
 import pygame.font
 from weapon import *
+import os
 
 
 
@@ -23,6 +24,14 @@ Player.containers = (updatable, drawable)
 Asteroid.containers = (updatable, drawable, asteroids)
 AsteroidField.containers = (updatable,)
 Shot.containers = (updatable, drawable, shots)
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for both development and PyInstaller"""
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 
 def draw_score(screen, score, font):
@@ -41,9 +50,9 @@ def main():
     background_music = None
     try:
         pygame.mixer.init()
-        shoot_sound = pygame.mixer.Sound("sounds/shoot.wav")
-        explosion_sound = pygame.mixer.Sound("sounds/explosion.wav")
-        background_music = pygame.mixer.Sound("sounds/background.wav")
+        shoot_sound = pygame.mixer.Sound(get_resource_path("sounds/shoot.wav"))
+        explosion_sound = pygame.mixer.Sound(get_resource_path("sounds/explosion.wav"))
+        background_music = pygame.mixer.Sound(get_resource_path("sounds/background.wav"))
         audio_enabled = True
         print("Audio loaded successfully!")
 
