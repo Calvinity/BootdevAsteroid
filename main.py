@@ -48,6 +48,8 @@ def main():
     shoot_sound = None
     explosion_sound = None
     background_music = None
+    easter_egg_sequence = []
+    show_easter_egg = False
     try:
         pygame.mixer.init()
         shoot_sound = pygame.mixer.Sound(get_resource_path("sounds/shoot.wav"))
@@ -106,35 +108,52 @@ def main():
         else:
         # Game over screen   
             screen.fill("black")
-            
-            # Game over text
-            game_over_text = game_over_font.render("GAME OVER!", True, (255, 255, 255))
-            game_over_rect = game_over_text.get_rect()
-            game_over_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50)
-            screen.blit(game_over_text, game_over_rect)
-            
-            # Score text below it
-            score_text = font.render(f"Final Score: {score}", True, (255, 165, 0))  # Using your orange color
-            score_rect = score_text.get_rect()
-            score_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 30)
-            screen.blit(score_text, score_rect)
+        
+            if show_easter_egg:
+                # Easter egg display
+                easter_egg_text = game_over_font.render("Ellie är bäst!", True, (255, 255, 255))
+                easter_egg_rect = easter_egg_text.get_rect()
+                easter_egg_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50)
+                screen.blit(easter_egg_text, easter_egg_rect)
+                
+                # Instructions to go back
+                back_text = font.render("Press ESC to go back", True, (255, 165, 0))
+                back_rect = back_text.get_rect()
+                back_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 20)
+                screen.blit(back_text, back_rect)
+                
+            else:
+                # Normal game over screen
+                # Game over text
+                game_over_text = game_over_font.render("GAME OVER!", True, (255, 255, 255))
+                game_over_rect = game_over_text.get_rect()
+                game_over_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50)
+                screen.blit(game_over_text, game_over_rect)
+                
+                # Score text below it
+                score_text = font.render(f"Final Score: {score}", True, (255, 165, 0))
+                score_rect = score_text.get_rect()
+                score_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 30)
+                screen.blit(score_text, score_rect)
 
-            # Restart instruction
+            # Restart instruction - ALWAYS SHOWN (moved outside the if/else blocks)
             restart_text = font.render("Press R to Restart or Q to Quit", True, (255, 255, 255))
             restart_rect = restart_text.get_rect()
             restart_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 80)
             screen.blit(restart_text, restart_rect)
-        
+            
         pygame.display.flip()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return
             if event.type == pygame.KEYDOWN and game_over:
-                if event.key == pygame.K_r:
+                if event.key == pygame.K_r and not show_easter_egg:
                     # Restart the game - reset all variables
                     game_over = False
                     score = 0
                     shot_timer = 0
+                    show_easter_egg = False  # Reset easter egg
+                    easter_egg_sequence = []  # Reset sequence
                     # Clear all existing sprites
                     for sprite in updatable:
                         sprite.kill()
@@ -154,6 +173,28 @@ def main():
                     
                 elif event.key == pygame.K_q:
                     return  # Quit the game
+                # Easter egg sequence tracking
+                elif not show_easter_egg:  # Only track if easter egg isn't showing
+                    if event.key == pygame.K_e and len(easter_egg_sequence) == 0:
+                        easter_egg_sequence = ['e']
+                    elif event.key == pygame.K_l and easter_egg_sequence == ['e']:
+                        easter_egg_sequence = ['e', 'l']
+                    elif event.key == pygame.K_l and easter_egg_sequence == ['e', 'l']:
+                        easter_egg_sequence = ['e', 'l', 'l']
+                    elif event.key == pygame.K_i and easter_egg_sequence == ['e', 'l', 'l']:
+                        easter_egg_sequence = ['e', 'l', 'l', 'i']
+                    elif event.key == pygame.K_e and easter_egg_sequence == ['e', 'l', 'l', 'i']:
+                        show_easter_egg = True
+                        easter_egg_sequence = []
+                    else:
+                        easter_egg_sequence = []  # Reset on wrong key
+
+                elif event.key == pygame.K_ESCAPE and show_easter_egg:
+                    show_easter_egg = False  # Hide easter egg and return to normal game over
+
+
+
+
         delta_time_ms = clock.tick(60)
         dt = delta_time_ms / 1000.0
 
