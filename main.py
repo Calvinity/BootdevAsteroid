@@ -12,7 +12,10 @@ from shot import *
 import pygame.font
 from weapon import *
 import os
-
+from menu import *
+from mouse import *
+from game_state import *
+from game_over import GameOver
 
 
 updatable = pygame.sprite.Group()
@@ -56,12 +59,11 @@ def draw_ui(screen, score, game_time, difficulty_level, font):
 
 def main():
     pygame.init()
+    current_state = GameState.MENU
     audio_enabled = False
     shoot_sound = None
     explosion_sound = None
     background_music = None
-    easter_egg_sequence = []
-    show_easter_egg = False
     try:
         pygame.mixer.init()
         shoot_sound = pygame.mixer.Sound(get_resource_path("sounds/shoot.wav"))
@@ -84,12 +86,53 @@ def main():
     dt = 0
     score = 0
     font = pygame.font.SysFont("Arial", 36)
-    player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
-    game_over_font = pygame.font.SysFont("Arial", 72)
-    asteroid_field = AsteroidField()
-    game_over = False
+
+    menu = Menu()
+    game_over_screen = GameOver()
+
+    player = None
+    asteroid_field = None
+
     while True:
-        if not game_over:
+        if current_state == GameState.MENU:
+            screen.fill("black")
+            menu.update_cooldown(dt)
+            
+            # Handle menu input every frame
+            mouse_pos = pygame.mouse.get_pos()
+            mouse_clicked = pygame.mouse.get_pressed()[0]
+            
+            # Update and draw menu buttons every frame
+            for button in menu.buttons:
+                button.update(mouse_pos, mouse_clicked)
+                button.draw(screen)
+            
+            # Draw title
+            title_font = pygame.font.Font(None, 72)
+            title = title_font.render("ASTEROIDS", True, "green")
+            title_rect = title.get_rect(center=(SCREEN_WIDTH//2, 100))
+            screen.blit(title, title_rect)
+
+            menu.draw_volume_display(screen, font)
+            
+            # Only transition when button is clicked
+            if menu.should_start:
+                current_state = GameState.PLAYING
+                player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+                asteroid_field = AsteroidField()
+                score = 0
+                menu.should_start = False
+
+            elif menu.should_show_options:
+                menu.in_options = True
+                menu.buttons = menu.options_buttons  # Switch button set
+                menu.should_show_options = False
+                
+
+            elif menu.should_quit:
+                return
+
+        elif current_state == GameState.PLAYING:
             keys = pygame.key.get_pressed()
             screen.fill("black")
             for sprite in drawable:
@@ -98,75 +141,46 @@ def main():
             for asteroid in asteroids:
                 if asteroid.collides_with(player):
                     print("Game over!")
-                    game_over = True
-            for asteroid in asteroids:
-                for shot in shots:
-                    if asteroid.collides_with(shot):
-                        asteroid.split()
-                        shot.kill()
-                        if audio_enabled and explosion_sound:
-                            explosion_sound.play()
-                        score += 10
-                        player.upgrade_weapon(score)
+                    current_state = GameState.GAME_OVER
+                    break
+            if current_state == GameState.PLAYING:
+                for asteroid in asteroids:
+                    for shot in shots:
+                        if asteroid.collides_with(shot):
+                            asteroid.split()
+                            shot.kill()
+                            if audio_enabled and explosion_sound:
+                                explosion_sound.set_volume(menu.master_volume)
+                                explosion_sound.play()
+                            score += 10
+                            player.upgrade_weapon(score)
+
+            for sprite in drawable:
+                sprite.draw(screen)
+
             difficulty_level = int(asteroid_field.game_time // asteroid_field.difficulty_interval)
             draw_ui(screen, score, asteroid_field.game_time, difficulty_level, font)
 
             if keys[pygame.K_SPACE]:
                 player.shoot()
                 if audio_enabled and shoot_sound:
+                    shoot_sound.set_volume(menu.master_volume)
                     shoot_sound.play()
             
 
 
-        else:
-        # Game over screen   
-            screen.fill("black")
-        
-            if show_easter_egg:
-                # Easter egg display
-                easter_egg_text = game_over_font.render("Ellie är bäst!", True, (255, 255, 255))
-                easter_egg_rect = easter_egg_text.get_rect()
-                easter_egg_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50)
-                screen.blit(easter_egg_text, easter_egg_rect)
-                
-                # Instructions to go back
-                back_text = font.render("Press ESC to go back", True, (255, 165, 0))
-                back_rect = back_text.get_rect()
-                back_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 20)
-                screen.blit(back_text, back_rect)
-                
-            else:
-                # Normal game over screen
-                # Game over text
-                game_over_text = game_over_font.render("GAME OVER!", True, (255, 255, 255))
-                game_over_rect = game_over_text.get_rect()
-                game_over_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50)
-                screen.blit(game_over_text, game_over_rect)
-                
-                # Score text below it
-                score_text = font.render(f"Final Score: {score}", True, (255, 165, 0))
-                score_rect = score_text.get_rect()
-                score_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 30)
-                screen.blit(score_text, score_rect)
-
-            # Restart instruction - ALWAYS SHOWN (moved outside the if/else blocks)
-            restart_text = font.render("Press R to Restart or Q to Quit", True, (255, 255, 255))
-            restart_rect = restart_text.get_rect()
-            restart_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 80)
-            screen.blit(restart_text, restart_rect)
+        elif current_state == GameState.GAME_OVER:
+            game_over_screen.draw(screen, score)
             
         pygame.display.flip()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return
-            if event.type == pygame.KEYDOWN and game_over:
-                if event.key == pygame.K_r and not show_easter_egg:
-                    # Restart the game - reset all variables
-                    game_over = False
+            if current_state == GameState.GAME_OVER:
+                action = game_over_screen.handle_event(event)
+                if action == "restart":
+                    current_state = GameState.PLAYING
                     score = 0
-                    shot_timer = 0
-                    show_easter_egg = False  # Reset easter egg
-                    easter_egg_sequence = []  # Reset sequence
                     # Clear all existing sprites
                     for sprite in updatable:
                         sprite.kill()
@@ -177,33 +191,15 @@ def main():
                     for sprite in shots:
                         sprite.kill()
                     if audio_enabled and background_music:
-                         pygame.mixer.stop()
-                         pygame.mixer.Sound.play(background_music, loops=-1)
-                        
+                        pygame.mixer.stop()
+                        pygame.mixer.Sound.play(background_music, loops=-1)
                     # Recreate the player and asteroid field
                     player = Player(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
                     asteroid_field = AsteroidField()
-                    
-                elif event.key == pygame.K_q:
-                    return  # Quit the game
-                # Easter egg sequence tracking
-                elif not show_easter_egg:  # Only track if easter egg isn't showing
-                    if event.key == pygame.K_e and len(easter_egg_sequence) == 0:
-                        easter_egg_sequence = ['e']
-                    elif event.key == pygame.K_l and easter_egg_sequence == ['e']:
-                        easter_egg_sequence = ['e', 'l']
-                    elif event.key == pygame.K_l and easter_egg_sequence == ['e', 'l']:
-                        easter_egg_sequence = ['e', 'l', 'l']
-                    elif event.key == pygame.K_i and easter_egg_sequence == ['e', 'l', 'l']:
-                        easter_egg_sequence = ['e', 'l', 'l', 'i']
-                    elif event.key == pygame.K_e and easter_egg_sequence == ['e', 'l', 'l', 'i']:
-                        show_easter_egg = True
-                        easter_egg_sequence = []
-                    else:
-                        easter_egg_sequence = []  # Reset on wrong key
+                elif action == "quit":
+                    return
 
-                elif event.key == pygame.K_ESCAPE and show_easter_egg:
-                    show_easter_egg = False  # Hide easter egg and return to normal game over
+                    
 
 
 

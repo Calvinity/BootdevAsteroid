@@ -5,12 +5,23 @@ from shot import Shot
 class Weapon:
     def __init__(self, weapon_type="basic"):
         self.weapon_type = weapon_type
+        # Define cooldowns for each weapon type
+        self.cooldowns = {
+            "basic": PLAYER_SHOOT_COOLDOWN,
+            "triple": PLAYER_SHOOT_COOLDOWN,
+            "burst": 0.15  # Faster firing for burst weapon
+        }
     
     def fire(self, player_pos, player_rotation):
         if self.weapon_type == "basic":
-            return self._fire_single(player_pos, player_rotation)
+            shots = self._fire_single(player_pos, player_rotation)
         elif self.weapon_type == "triple":
-            return self._fire_triple(player_pos, player_rotation)
+            shots = self._fire_triple(player_pos, player_rotation)
+        elif self.weapon_type == "burst":
+            shots = self._fire_triple(player_pos, player_rotation)
+        
+        # Return both shots and the cooldown for this weapon
+        return shots, self.cooldowns[self.weapon_type]
     
     def _fire_single(self, pos, rotation):
         shot = Shot(pos.x, pos.y, SHOT_RADIUS)
@@ -25,3 +36,5 @@ class Weapon:
             shot.velocity = direction * PLAYER_SHOT_SPEED
             shots.append(shot)
         return shots
+    
+
